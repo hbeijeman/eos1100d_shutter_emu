@@ -165,7 +165,7 @@ FlashDeclaration:
     FLASH.Create 1. 0x080e0000--0x080fffff TARGET Byte; 11.
   )
 
-  FLASH.TARGET 0x20000000 0x20001000 0x1000 stm32f0.bin
+  FLASH.TARGET 0x20000000 0x20001000 0x1000 ./src/stm32f0xx_lib/stm32f0.bin
   RETURN
 
 

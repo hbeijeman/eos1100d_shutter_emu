@@ -30,6 +30,10 @@ void irq_hardfault(void);
 void irq_trigger(void);
 void irq_tim2(void);
 void irq_tim3(void);
+void irq_systick(void);
+
+#define CPUFREQ         48000000
+#define SYSTICK_RATE    1000
 
 static void clock_init(void)
 {
@@ -51,6 +55,19 @@ static void clock_init(void)
 
     /* Wait until SYSCLK set from HSI48 */
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI48) {}
+}
+
+static void systick_init(unsigned ticks)
+{
+  if (ticks > SysTick_LOAD_RELOAD_Msk)            /* Reload value impossible */
+      return;
+
+  SysTick->LOAD  = (ticks & SysTick_LOAD_RELOAD_Msk) - 1;      /* set reload register */
+  NVIC_SetPriority (SysTick_IRQn, (1<<__NVIC_PRIO_BITS) - 9);  /* set Priority for Cortex-M0 System Interrupts */
+  SysTick->VAL   = 0;                                          /* Load the SysTick Counter Value */
+  SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
+                   SysTick_CTRL_TICKINT_Msk   |
+                   SysTick_CTRL_ENABLE_Msk;                    /* Enable SysTick IRQ and SysTick Timer */
 }
 
 __attribute__((__interrupt__, noreturn)) void irq_reset(void)
@@ -87,6 +104,7 @@ __attribute__((__interrupt__, noreturn)) void irq_reset(void)
     }
 
     clock_init();
+    systick_init((CPUFREQ)/(SYSTICK_RATE));
 
     IRQ_ENABLE;
 
@@ -117,14 +135,14 @@ uint32_t* vectors[] = {
     (uint32_t*)&irq_hardfault,
     (uint32_t*)&irq_hardfault,
     (uint32_t*)&irq_hardfault,
-    (uint32_t*)&irq_hardfault,
-    (uint32_t*)&irq_hardfault,
+    (uint32_t*)&irq_systick,
     (uint32_t*)&irq_hardfault,
     (uint32_t*)&irq_hardfault,
     (uint32_t*)&irq_hardfault,
     (uint32_t*)&irq_hardfault,
     (uint32_t*)&irq_hardfault,
     (uint32_t*)&irq_trigger,
+    (uint32_t*)&irq_hardfault,
     (uint32_t*)&irq_hardfault,
     (uint32_t*)&irq_hardfault,
     (uint32_t*)&irq_hardfault,

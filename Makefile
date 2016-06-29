@@ -1,4 +1,4 @@
-CFLAGS=-c -Isrc -Isrc/stm32f0xx_lib -mcpu=cortex-m0 -ffreestanding -mthumb -std=c99 -fno-delayed-branch -fno-defer-pop -fno-exceptions -ffunction-sections -fdata-sections
+CFLAGS=-c -Isrc -Isrc/stm32f0xx_lib -mcpu=cortex-m0 -ffreestanding -mthumb -std=c99 -fno-delayed-branch -fno-defer-pop -fno-exceptions -ffunction-sections -fdata-sections -g -ggdb -g3 -O0
 LDFLAGS=--static -Wl,-static,-relax,-Map=release.map,--cref,--gc-sections -Xlinker --defsym -Xlinker MK_SKIP_FILL=1 -Wl,-Tsrc/linker.ld
 
 SOURCES=src/main.c \
