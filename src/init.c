@@ -32,11 +32,16 @@ void irq_tim2(void);
 void irq_tim3(void);
 void irq_systick(void);
 
+#ifdef HSI48
 #define CPUFREQ         48000000
+#else
+#define CPUFREQ         8000000
+#endif
 #define SYSTICK_RATE    1000
 
 static void clock_init(void)
 {
+#ifdef HSI48
     /* Set HSI48 ON bit */
     RCC->CR2 |= RCC_CR2_HSI48ON;
 
@@ -55,6 +60,27 @@ static void clock_init(void)
 
     /* Wait until SYSCLK set from HSI48 */
     while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI48) {}
+#else
+    /* Set HSION bit */
+    RCC->CR |= (uint32_t)0x00000001;
+
+    /* Wait for HSI ready */
+    while (!(RCC->CR & RCC_CR_HSIRDY)) {}
+
+    /* Enable Prefetch Buffer and set Flash Latency */
+    FLASH->ACR = FLASH_ACR_PRFTBE | FLASH_ACR_LATENCY;
+
+    /* HCLK,PCLK = SYSCLK, from HSI48, DIV1 */
+    RCC->CFGR |= RCC_CFGR_HPRE_DIV1 | RCC_CFGR_PPRE_DIV1;
+
+    /* Select HSI as system clock source */
+    RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_SW_HSI));
+    RCC->CFGR |= (uint32_t)RCC_CFGR_SW_HSI;
+
+    /* Wait until SYSCLK set from HSI48 */
+    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI) {}
+
+#endif
 }
 
 static void systick_init(unsigned ticks)

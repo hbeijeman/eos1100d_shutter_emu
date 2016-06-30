@@ -23,7 +23,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdint.h>
 #include <stddef.h>
 
-#define UNITTEST
+//#define UNITTEST
 
 #include "stm32f0xx.h"
 #include "stm32f0xx_rcc.h"
@@ -143,10 +143,7 @@ typedef struct S_SHUTTER {
     void (*state)(struct S_SHUTTER* const sh, T_TRIGGER const action);
 } T_SHUTTER;
 
-#ifdef UNITTEST
 static uint32_t time = 0;
-#endif
-
 
 static T_SHUTTER shutter;
 static void handler_state_idle(T_SHUTTER* const sh, T_TRIGGER const action);
@@ -301,14 +298,14 @@ static void init_peripherals(void)
 
     //// Init timer_do scheduler timer w/IRQ
     TIM_TimeBaseStructInit(&TIM_BaseStruct);
-    TIM_BaseStruct.TIM_Period = 0x1300;         // 100us
+    TIM_BaseStruct.TIM_Period = 0x32a; // // STM32F072 DISCO/HS48 0x1300;         // 100us
     TIM_TimeBaseInit(TIM2, &TIM_BaseStruct);
     TIM_Cmd(TIM2, ENABLE);
     TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
 
     //// Init time-base reference (2us ticks)
     TIM_TimeBaseStructInit(&TIM_BaseStruct);
-    TIM_BaseStruct.TIM_Prescaler            = 0x1d6;    // 10us
+    TIM_BaseStruct.TIM_Prescaler            = 0x4e; // STM32F072 DISCO/HS48 0x1d6;    // 10us
     TIM_TimeBaseInit(TIM3, &TIM_BaseStruct);
     TIM_Cmd(TIM3, DISABLE);
     TIM_ITConfig(TIM3, TIM_IT_Update, ENABLE);
@@ -348,7 +345,7 @@ static void init_peripherals(void)
 void main(void)
 {
     init_peripherals();
-    test_pins_idle();
+    //test_pins_idle();
 
     //start_timebase();
 
@@ -378,7 +375,7 @@ void main(void)
         old_lock = lock;
 
 
-        if (lock == 1) {
+        if (old_lock == 1) {
 
             start = 200;
 
@@ -410,11 +407,11 @@ void main(void)
             if (fire_t1 == 5 && (time > (start+110+250+18))) {
                 fire_t1++;
                 T1_CLR;
-                lock = 0;
+                old_lock = lock = 0;
             }
         }
 
-        if (lock == 2) {
+        if (old_lock == 2) {
             start = 200;
 
             if ((fire_t1 == 0) && (time > start)) {
@@ -435,11 +432,11 @@ void main(void)
             if ((fire_t1 == 3) && (time > (start+120))) {
                 fire_t1++;
                 T1_CLR;
-                lock = 0;
+                old_lock = lock = 0;
             }
         }
 
-        if (lock == 3) {
+        if (old_lock == 3) {
             start = 200;
 
             if ((fire_t1 == 0) && (time > start)) {
@@ -450,7 +447,7 @@ void main(void)
             if ((fire_t1 == 1) && (time > (start+200))) {
                 fire_t1++;
                 T2_SET;
-                lock = 0;
+                old_lock = lock = 0;
             }
 
         }
@@ -486,21 +483,21 @@ __attribute__((__interrupt__)) void irq_tim2(void)
 {
     if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET) {
         TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-//        GPIO_WriteBit(GPIOB, GPIO_Pin_3, Bit_SET);
-//        GPIO_WriteBit(GPIOB, GPIO_Pin_3, Bit_RESET);
+//        GPIO_WriteBit(GPIOA, GPIO_Pin_4, Bit_SET);
+//        GPIO_WriteBit(GPIOA, GPIO_Pin_4, Bit_RESET);
         timer_do(&shutter);
     }
 }
 
-// 100us TIMER
+// 10us TIMER
 __attribute__((__interrupt__)) void irq_tim3(void)
 {
     if (TIM_GetITStatus(TIM3, TIM_IT_Update) != RESET) {
         TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
         // handle time-base overflow event
 
-//        GPIO_WriteBit(GPIOA, GPIO_Pin_3, Bit_SET);
-//        GPIO_WriteBit(GPIOA, GPIO_Pin_3, Bit_RESET);
+//        GPIO_WriteBit(GPIOA, GPIO_Pin_7, Bit_SET);
+//        GPIO_WriteBit(GPIOA, GPIO_Pin_7, Bit_RESET);
         timer_base_overflow(&shutter);
     }
 }

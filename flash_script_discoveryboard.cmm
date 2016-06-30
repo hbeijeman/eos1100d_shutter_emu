@@ -1,0 +1,172 @@
+;
+; Example Script for programming of ST STM32F4xx internal flash
+;
+; List of STM32F4xx derivatives and their configuration:
+;
+;   CPU-Type      Flash size
+;                   [kByte]
+;   -------------------------
+;   STM32F405RB       128.
+;   STM32F405RC       256.
+;   STM32F405RE       512.
+;   STM32F405RF       768.
+;   STM32F405RG      1024.
+;   STM32F405VC       256.
+;   STM32F405VG      1024.
+;   STM32F405ZC       256.
+;   STM32F405ZG      1024.
+;   -------------------------
+;   STM32F407IC       256.
+;   STM32F407IG      1024.
+;   STM32F407VC       256.
+;   STM32F407VG      1024.
+;   STM32F407ZC       256.
+;   STM32F407ZG      1024.
+;   -------------------------
+;   STM32F415RE       512.
+;   STM32F415RG      1024.
+;   STM32F415VE       512.
+;   STM32F415VG      1024.
+;   STM32F415ZE       512.
+;   STM32F415ZG      1024.
+;   -------------------------
+;   STM32F417IE       512.
+;   STM32F417IG      1024.
+;   STM32F417VE       512.
+;   STM32F417VG      1024.
+;   STM32F417ZE       512.
+;   STM32F417ZG      1024.
+;
+; Flash base address is 0x08000000
+; SRAM base address is  0x20000000
+;
+; $Author: wdoering $
+; $Date: 2011-02-22 11:30:54 +0100 (Di, 22 Feb 2011) $
+; $Rev: 1235 $
+;
+
+;========================================================================
+; Setup the configuration information out of the table above.
+;
+
+;&flashsize=256.
+;&ramsize=32.
+;&flashsize=1024.
+&ramsize=128.
+
+;========================================================================
+; CPU setup
+
+  sys.down
+  SYStem.RESet
+  SYStem.CPU STM32F072RB
+  SYStem.OPTION IMASKASM ON
+  SYStem.OPTION DUALPORT ON
+  SYStem.CONFIG DEBUGPORTTYPE SWD
+  SYStem.CONFIG CONNECTOR MIPI20T
+  system.JtagClock 5MHz
+  ;itm.reset
+  ;do common
+  ;ca.mode fifo
+  ;ca.init
+  SYStem.Up
+
+;========================================================================
+; Flash declaration
+
+  FLASH.RESet
+  GOSUB FlashDeclaration
+
+
+; FLASH.List
+
+;========================================================================
+; Flash programming example
+;
+DIALOG.YESNO "Program flash memory?"
+LOCAL &progflash
+ENTRY &progflash
+
+if &progflash
+(
+  DIALOG.YESNO "Erase flash memory first?"
+  LOCAL &eraseflash
+  ENTRY &eraseflash
+
+  if &eraseflash
+  (
+    FLASH.erase 1.
+  )
+  FLASH.program 1.
+  Data.LOAD.auto main.elf /WORD
+  FLASH.Program off
+)
+
+symbol.SOURCEPATH.SETRECURSEDIR .
+Data.LOAD.auto main.elf /nocode
+Data.LOAD.auto main.elf /VM
+
+
+; Initialize CMX Awareness
+; Note that the CMX awareness needs the kernel symbols to work
+ 
+;ca.
+;winpos 0% 31% 30% 68%
+;ca.l /Track
+;winpos 31% 27. 68% 8.
+;ca.chart /Track
+
+
+; Slect the Analyzer (PowerTrace with Preprocessor)
+Trace.Method CAnalyzer   ; Using CombiProbe  
+Trace.Off                ; Enable the trace and turn it off
+
+mode.hll
+d.l
+
+system.resetout
+
+ENDDO
+
+
+;========================================================================
+; Flash declaration depending on selected CPU 
+
+FlashDeclaration:
+  LOCAL &FlashSize
+
+    &FlashSize=0x20000
+
+  IF &FlashSize>=0x20000
+  (
+    FLASH.Create 1. 0x08000000--0x08003fff TARGET Byte; 0.
+    FLASH.Create 1. 0x08004000--0x08007fff TARGET Byte; 1.
+    FLASH.Create 1. 0x08008000--0x0800bfff TARGET Byte; 2.
+    FLASH.Create 1. 0x0800c000--0x0800ffff TARGET Byte; 3.
+    FLASH.Create 1. 0x08010000--0x0801ffff TARGET Byte; 4.
+  )
+  IF &FlashSize>=0x40000
+  (
+    FLASH.Create 1. 0x08020000--0x0803ffff TARGET Byte; 5.
+  )
+  IF &FlashSize>=0x80000
+  (
+    FLASH.Create 1. 0x08040000--0x0805ffff TARGET Byte; 6.
+    FLASH.Create 1. 0x08060000--0x0807ffff TARGET Byte; 7.
+  )
+  IF &FlashSize>=0xc0000
+  (
+    FLASH.Create 1. 0x08080000--0x0809ffff TARGET Byte; 8.
+    FLASH.Create 1. 0x080a0000--0x080bffff TARGET Byte; 9.
+  )
+  IF &FlashSize>=0x100000
+  (
+    FLASH.Create 1. 0x080c0000--0x080dffff TARGET Byte; 10.
+    FLASH.Create 1. 0x080e0000--0x080fffff TARGET Byte; 11.
+  )
+
+  FLASH.TARGET 0x20000000 0x20001000 0x1000 ./src/stm32f0xx_lib/stm32f0.bin
+  RETURN
+
+
+

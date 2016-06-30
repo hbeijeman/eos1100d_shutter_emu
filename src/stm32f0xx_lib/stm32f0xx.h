@@ -81,7 +81,7 @@
   /* #define STM32F030 */   
   /* #define STM32F031 */   
   /* #define STM32F051 */   
-  #define STM32F072
+  /* #define STM32F072 */
   /* #define STM32F070xB */   
   /* #define STM32F042 */
   /* #define STM32F070x6 */   
