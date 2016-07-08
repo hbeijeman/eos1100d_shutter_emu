@@ -67,7 +67,7 @@ typedef enum {
 
 #define TB                      (10)                // timebase divisor
 #define TRIG2_P7_SAMPLE_WAIT    (72000/TB)  // time to wait before sampling P7
-#define TRIG2_P7_SAMPLE_HOLD    (110000/TB)  // time to wait before sampling P7
+#define TRIG2_P7_SAMPLE_HOLD    (130000/TB)  // time to wait before sampling P7
 
 #define P1_SET      (volatile uint16_t*)&GPIOA->BSRR,   (1<<3)
 #define P1_CLR      (volatile uint16_t*)&GPIOA->BRR,    (1<<3)
@@ -95,14 +95,14 @@ typedef struct {
 // Trigger: D8/digital input (110ms) (time-base in 2us (divide by /2))
 static const T_SHUTTER_TIMING timing_open[] =
 {
-     {25850/TB,        P9_SET},
-     {34000/TB,        P1_CLR},
-     {35100/TB,        P10_CLR},
-     {39400/TB,        P1_SET},
-     {42000/TB,        P1_CLR},
-     {62900/TB,        P10_SET},
-     {71400/TB,        P12_CLR},
-     //{110500/TB,       P1_SET},         // <<<< Problem with short mode / conflict
+     {25850/TB,        P9_CLR},
+     {34000/TB,        P1_SET},
+     {35100/TB,        P10_SET},
+     {39400/TB,        P1_CLR},
+     {42000/TB,        P1_SET},
+     {62900/TB,        P10_CLR},
+     {71400/TB,        P12_SET},
+     //{110500/TB,       P1_CLR},         // <<<< Problem with short mode / conflict
 
      {0, 0, 0},       // END
 };
@@ -110,14 +110,14 @@ static const T_SHUTTER_TIMING timing_open[] =
 // Trigger: D8/digital input (18ms) (time-base in 2us (divide by /TB))
 static const T_SHUTTER_TIMING timing_close_long[] =
 {
-     {200/TB,           P1_CLR},
-     {5900/TB,          P1_SET},
-     {7200/TB,          P1_CLR},
-     {8600/TB,          P1_SET},
-     {34800/TB,         P12_SET},
-     {71100/TB,         P8_CLR},
-     {107600/TB,        P8_SET},
-     {108000/TB,        P9_CLR},
+     {200/TB,           P1_SET},
+     {5900/TB,          P1_CLR},
+     {7200/TB,          P1_SET},
+     {8600/TB,          P1_CLR},
+     {34800/TB,         P12_CLR},
+     {71100/TB,         P8_SET},
+     {107600/TB,        P8_CLR},
+     {108000/TB,        P9_SET},
 
      {0,0, 0},         // END
 };
@@ -125,13 +125,13 @@ static const T_SHUTTER_TIMING timing_close_long[] =
 // Trigger: D8/digital input (18ms) (time-base in 2us (divide by /TB))
 static const T_SHUTTER_TIMING timing_close_short[] =
 {
-     {2800/TB,          P1_SET},    // OK
-     {4300/TB,          P1_CLR},    // OK
-     {5600/TB,          P1_SET},    // OK
-     {31600/TB,         P12_SET},   // OK
-     {67800/TB,         P8_CLR},    // OK
-     {104000/TB,        P8_SET},    // OK
-     {105000/TB,        P9_CLR},    // OK
+     {2800/TB,          P1_CLR},    // OK
+     {4300/TB,          P1_SET},    // OK
+     {5600/TB,          P1_CLR},    // OK
+     {31600/TB,         P12_CLR},   // OK
+     {67800/TB,         P8_SET},    // OK
+     {104000/TB,        P8_CLR},    // OK
+     {105000/TB,        P9_SET},    // OK
 
      {0,0, 0},         // END
 };
@@ -201,7 +201,7 @@ static void handler_state_open(T_SHUTTER* const sh, T_TRIGGER const action)
         }
     } else if (action == TRIG1_DEACTIVATE) {
         // Reset P1 (in line with falling edge of P5/Trig1
-        GPIO_WriteBit(GPIOA, GPIO_Pin_3, Bit_SET);
+        GPIO_WriteBit(GPIOA, GPIO_Pin_3, Bit_RESET);
         sh->active = 0;
         stop_timebase();
         sh->phase = PHASE_CLOSE_LONG;
@@ -247,20 +247,6 @@ static void timer_do(T_SHUTTER* const sh)
 
     sh->state(sh, TIMER);
 }
-
-#ifdef UNITTEST
-static void test_pins_idle(void)
-{
-    GPIO_WriteBit(GPIOA, GPIO_Pin_3, Bit_SET);
-    GPIO_WriteBit(GPIOA, GPIO_Pin_5, Bit_SET);
-    GPIO_WriteBit(GPIOA, GPIO_Pin_6, Bit_SET);
-    GPIO_WriteBit(GPIOA, GPIO_Pin_7, Bit_SET);
-
-    // Clear P9
-    GPIO_WriteBit(GPIOA, GPIO_Pin_4, Bit_RESET);
-}
-#endif
-
 
 static void shutter_init(T_SHUTTER* sh)
 {
@@ -318,11 +304,6 @@ static void init_peripherals(void)
     GPIO_InitStruct.GPIO_Pin   = GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;
     GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-#ifdef UNITTEST
-    GPIO_InitStruct.GPIO_Pin   = GPIO_Pin_3 | GPIO_Pin_4;
-    GPIO_Init(GPIOB, &GPIO_InitStruct);
-#endif
-
     GPIO_InitStruct.GPIO_Pin   = GPIO_Pin_0 | GPIO_Pin_2;
     GPIO_InitStruct.GPIO_Mode  = GPIO_Mode_IN;
     GPIO_InitStruct.GPIO_PuPd  = GPIO_PuPd_DOWN;
@@ -335,145 +316,48 @@ static void init_peripherals(void)
     EXTI_InitStruct.EXTI_Mode       = EXTI_Mode_Interrupt;
     EXTI_InitStruct.EXTI_Trigger    = EXTI_Trigger_Rising_Falling;
     EXTI_Init(&EXTI_InitStruct);
-    NVIC_EnableIRQ(EXTI0_1_IRQn);
+}
 
-#ifdef UNITTEST
-    GPIO_WriteBit(GPIOB, GPIO_Pin_3, Bit_RESET); // Set D10
-#endif
+static void pins_startup(void)
+{
+    GPIO_WriteBit(GPIOA, GPIO_Pin_4, Bit_SET);
+
+    GPIO_WriteBit(GPIOA, GPIO_Pin_3, Bit_RESET);
+    GPIO_WriteBit(GPIOA, GPIO_Pin_5, Bit_RESET);
+    GPIO_WriteBit(GPIOA, GPIO_Pin_6, Bit_RESET);
+    GPIO_WriteBit(GPIOA, GPIO_Pin_7, Bit_RESET);
+}
+
+static void allow_events(void)
+{
+    NVIC_EnableIRQ(EXTI0_1_IRQn);
 }
 
 void main(void)
 {
     init_peripherals();
-    //test_pins_idle();
+    pins_startup();
 
-    //start_timebase();
+    /* Wait 'till camera is ready, avoid spurious IRQs due to PSU switching */
+    while (time < 1500);
 
-#ifdef UNITTEST
-    static uint32_t fire_t1 = 0;
-    static uint32_t lock = 0;
-    static uint32_t start;
+    allow_events();
 
-#define T1_SET      GPIO_WriteBit(GPIOB, GPIO_Pin_3, Bit_SET)
-#define T1_CLR      GPIO_WriteBit(GPIOB, GPIO_Pin_3, Bit_RESET)
-#define T2_CLR      GPIO_WriteBit(GPIOB, GPIO_Pin_4, Bit_RESET)
-#define T2_SET      GPIO_WriteBit(GPIOB, GPIO_Pin_4, Bit_SET)
-
-    T1_CLR;
-    T2_SET;
-
-    FOR_EVER {
-        static uint32_t old_lock;
-        if (lock != old_lock) {
-            __disable_irq();
-            time = 0;
-            fire_t1 = 0;
-            T1_CLR;
-            T2_SET;
-            __enable_irq();
-        }
-        old_lock = lock;
-
-
-        if (old_lock == 1) {
-
-            start = 200;
-
-            if ((fire_t1 == 0) && (time > start)) {
-                fire_t1++;
-                T1_SET;
-            }
-
-            if ((fire_t1 == 1) && (time > (start+1))) {
-                fire_t1++;
-                T2_CLR;
-            }
-
-            if (fire_t1 == 2 && (time > (start+110))) {
-                fire_t1++;
-                T1_CLR;
-            }
-
-            if (fire_t1 == 3 && (time > (start+110+250))) {
-                fire_t1++;
-                T1_SET;
-            }
-
-            if ((fire_t1 == 4) && (time > (start+110+250+2))) {
-                fire_t1++;
-                T2_SET;
-            }
-
-            if (fire_t1 == 5 && (time > (start+110+250+18))) {
-                fire_t1++;
-                T1_CLR;
-                old_lock = lock = 0;
-            }
-        }
-
-        if (old_lock == 2) {
-            start = 200;
-
-            if ((fire_t1 == 0) && (time > start)) {
-                fire_t1++;
-                T1_SET;
-            }
-
-            if ((fire_t1 == 1) && (time > (start+1))) {
-                fire_t1++;
-                T2_CLR;
-            }
-
-            if ((fire_t1 == 2) && (time > (start+104))) {
-                fire_t1++;
-                T2_SET;
-            }
-
-            if ((fire_t1 == 3) && (time > (start+120))) {
-                fire_t1++;
-                T1_CLR;
-                old_lock = lock = 0;
-            }
-        }
-
-        if (old_lock == 3) {
-            start = 200;
-
-            if ((fire_t1 == 0) && (time > start)) {
-                fire_t1++;
-                T2_CLR;
-            }
-
-            if ((fire_t1 == 1) && (time > (start+200))) {
-                fire_t1++;
-                T2_SET;
-                old_lock = lock = 0;
-            }
-
-        }
-    }
-
-#else
     FOR_EVER {}
-#endif
 }
 
 // Trigger input
 __attribute__((__interrupt__)) void irq_trigger(void)
 {
-#if 1
     if (EXTI_GetITStatus(EXTI_Line0) != RESET) {
         uint8_t const set = GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_0);
         if (set == Bit_SET) {
             /* Rising Edge */
             shutter.state(&shutter, TRIG1_ACTIVATE);
-            //cam_input_do(&shutter, TRIG1_ACTIVATE);
         } else {
             shutter.state(&shutter, TRIG1_DEACTIVATE);
-            //cam_input_do(&shutter, TRIG1_DEACTIVATE);
         }
     }
-#endif
 
     EXTI_ClearITPendingBit(EXTI_Line0);
 }
@@ -483,8 +367,7 @@ __attribute__((__interrupt__)) void irq_tim2(void)
 {
     if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET) {
         TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-//        GPIO_WriteBit(GPIOA, GPIO_Pin_4, Bit_SET);
-//        GPIO_WriteBit(GPIOA, GPIO_Pin_4, Bit_RESET);
+
         timer_do(&shutter);
     }
 }
@@ -496,8 +379,6 @@ __attribute__((__interrupt__)) void irq_tim3(void)
         TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
         // handle time-base overflow event
 
-//        GPIO_WriteBit(GPIOA, GPIO_Pin_7, Bit_SET);
-//        GPIO_WriteBit(GPIOA, GPIO_Pin_7, Bit_RESET);
         timer_base_overflow(&shutter);
     }
 }
